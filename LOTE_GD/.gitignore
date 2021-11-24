@@ -1,0 +1,6 @@
+.env
+*.log
+download
+excel
+zip
+__pycache__
