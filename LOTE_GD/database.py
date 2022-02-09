@@ -28,7 +28,7 @@ def get_bills(bills_data):
             f.Cod_UC,
             f.Cod_Fatura,
             z.Cod_Usina,
-            UPPER(z.Rz_Social) Usina,
+            UPPER(z.Rz_Social_UTF8) Usina,
             c.Sigla Concess,
             u.UC,
             IFNULL(i.Nome_Arquivo, i.Nome_Arquivo_Antigo) Nome_Upload,
@@ -74,7 +74,6 @@ def get_bills(bills_data):
             AND i.Arquivo_Envio_GD = 0
         )
     '''
-
     db = connect_db()
     cursor = db.cursor(dictionary=True)
     

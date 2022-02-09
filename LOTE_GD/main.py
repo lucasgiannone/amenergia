@@ -3,18 +3,23 @@ from queue import Queue
 from time import time
 import logging
 import os
+from datetime import datetime
+from soupsieve import match
 from database import get_bills, download_link, send_to_database
 from excel import write_bills_xlsx, clean_usina_name
 from zip import delete_folders, zip_usinas
-from upload import upload_to_storage
+from upload import upload_to_storage, move_files_expired
+from backup import backuplocal
 
 from dotenv import load_dotenv
 load_dotenv()
 
-logging.basicConfig(filename='lote_gd.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='lote_gd.log', filemode='w', level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('LOTE_GD')
 
 BillsResult = []
+
 
 class DownloadWorker(Thread):
     def __init__(self, queue):
@@ -37,22 +42,22 @@ class DownloadWorker(Thread):
                 elif Tensao == 'bt':
                     Tensao = 'Baixa'
 
-                ## LINK
+                # LINK
                 link = f'https://storage.googleapis.com/faturas-amenergia/{Tensao}/{Cod_Empresa}/{Cod_UC}/{Nome_Upload}'
 
-                ## CREATE FOLDER
+                # CREATE FOLDER
                 Usina = clean_usina_name(Usina)
                 path = f'./download/{Usina}/'
                 os.makedirs(path, exist_ok=True)
 
-                ## FILENAME
+                # FILENAME
                 Mes_Ref_Format = Mes_Ref.strftime("%y_%m")
                 filename = f'{Uc} {Mes_Ref_Format}.pdf'
 
-                ## DOWNLOAD
+                # DOWNLOAD
                 download_link(path, link, filename)
 
-                ## ADD TO BILL ARRAY
+                # ADD TO BILL ARRAY
                 BillsResult.append(bill)
 
                 logger.info(f'Download Completo {link}')
@@ -64,9 +69,12 @@ class DownloadWorker(Thread):
             finally:
                 self.queue.task_done()
 
+
 def main():
     ts = time()
     queue = Queue()
+
+    move_files_expired()
 
     delete_folders()
     logger.info(f'Folders Deleted')
@@ -85,7 +93,22 @@ def main():
         worker.start()
 
     for bill in bills:
-        queue.put(bill)
+        if bill['Usina'] == 'LYON IV':
+            if bill['Mes_Ref'] >= (datetime.strptime('2022-01-01', "%Y-%m-%d").date()):
+                print(bill['Usina'],bill['Mes_Ref'])
+                queue.put(bill)
+        elif bill['Usina'] == 'LYON V':
+            if bill['Mes_Ref'] >= (datetime.strptime('2022-01-01', "%Y-%m-%d").date()):
+                print(bill['Usina'],bill['Mes_Ref'])
+                queue.put(bill)
+        elif bill['Usina'] == 'LIBERA MARIA':
+            if bill['Mes_Ref'] >= (datetime.strptime('2022-01-01', "%Y-%m-%d").date()):
+                print(bill['Usina'],bill['Mes_Ref'])
+                queue.put(bill)
+        else:
+            print(bill['Usina'],bill['Mes_Ref'])
+            queue.put(bill)
+
 
     queue.join()
     logger.info(f'Download Finished')
@@ -99,10 +122,14 @@ def main():
     Usinas_Links = upload_to_storage(Usinas_Bills)
     logger.info(f'Upload Finished')
 
+    backuplocal()
+    logger.info(f'Backup Finished')
+
     send_to_database(Usinas_Links, Usinas_Bills)
     logger.info(f'Update on Database Finished')
 
     logging.info('Tempo de execucao: %s', time() - ts)
+
 
 if __name__ == '__main__':
     main()

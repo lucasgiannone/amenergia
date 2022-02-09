@@ -58,3 +58,5 @@ def write_bills_xlsx(bills):
 
 if __name__ == '__main__':
     print("Execute o arquivo main.py")
+    # var = clean_usina_name('MARABÁ 1')
+    # print(var)
