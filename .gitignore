@@ -6,3 +6,4 @@ download
 excel
 zip
 __pycache__
+*.pdf

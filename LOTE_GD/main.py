@@ -74,8 +74,10 @@ def main():
     ts = time()
     queue = Queue()
 
+    #desativa links
     move_files_expired()
 
+    #deleta arquivos antigos
     delete_folders()
     logger.info(f'Folders Deleted')
 
@@ -86,30 +88,36 @@ def main():
 
     bills = get_bills(bills_data)
     logger.info(f'Bills Fetched from Mysql')
-
+    #baixa de faturas (range 8 = 8 faturas ao mesmo tempo)
     for x in range(8):
         worker = DownloadWorker(queue)
         worker.daemon = True
         worker.start()
 
     for bill in bills:
-        if bill['Usina'] == 'LYON IV':
+        Usina = bill["Usina"]
+        Usina = clean_usina_name(Usina)
+        # Para enviar uma só usina, comentar if abaixo e deixar somente o necessário
+        if Usina == 'ITAQUI':
+            if bill['Mes_Ref'] >= (datetime.strptime('2022-02-01', "%Y-%m-%d").date()):
+                print(Usina,bill['Mes_Ref'])
+                queue.put(bill)
+        elif bill['Usina'] == 'LYON IV':
             if bill['Mes_Ref'] >= (datetime.strptime('2022-01-01', "%Y-%m-%d").date()):
-                print(bill['Usina'],bill['Mes_Ref'])
+                print(Usina,bill['Mes_Ref'])
                 queue.put(bill)
         elif bill['Usina'] == 'LYON V':
             if bill['Mes_Ref'] >= (datetime.strptime('2022-01-01', "%Y-%m-%d").date()):
-                print(bill['Usina'],bill['Mes_Ref'])
+                print(Usina,bill['Mes_Ref'])
                 queue.put(bill)
         elif bill['Usina'] == 'LIBERA MARIA':
             if bill['Mes_Ref'] >= (datetime.strptime('2022-01-01', "%Y-%m-%d").date()):
-                print(bill['Usina'],bill['Mes_Ref'])
+                print(Usina,bill['Mes_Ref'])
                 queue.put(bill)
         else:
             print(bill['Usina'],bill['Mes_Ref'])
             queue.put(bill)
-
-
+    
     queue.join()
     logger.info(f'Download Finished')
 

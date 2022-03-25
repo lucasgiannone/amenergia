@@ -7,7 +7,7 @@ from download import get_bills, download_link
 import re
 
 
-logging.basicConfig(filename='download.log', filemode='w', level=logging.CRITICAL,
+logging.basicConfig(filename='download.log', filemode='w', level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -26,25 +26,62 @@ class DownloadWorker(Thread):
                 elif bill['Tensao'] == 'bt':
                     bill['Tensao'] = 'Baixa'
                 link = "https://storage.googleapis.com/faturas-amenergia/{Tensao}/1704/{Cod_UC}/{Nome_Upload}".format(
-                    Tensao=bill['Tensao'],Cod_UC=bill['Cod_UC'], Nome_Upload=bill['Nome_Upload'])
+                    Tensao=bill['Tensao'], Cod_UC=bill['Cod_UC'], Nome_Upload=bill['Nome_Upload'])
                 # print(str(bill["UC"]))
-                print(link)
                 path = "./download/"
-                os.makedirs(path, exist_ok=True)
-                mesRef = bill['Mes_Ref']
-                mesRef = mesRef.strftime("%y_%m")
+                
+                mesRef1 = bill['Mes_Ref']
+                mesRef2 = mesRef1.strftime("%y_%m")
+                mesRef3 = mesRef1.strftime("%d/%m/%Y")
                 numFatura = str(bill['Nome_Upload'])
                 numFatura = numFatura.split('_')
                 numFatura = re.sub(r"[0-9]", "", str(numFatura[2]))
                 Unidade = str(bill['UC']).strip()
-                filename = "{UC} {Mes_Ref}{EXT}".format(UC=(Unidade),Mes_Ref=str(mesRef),EXT=(numFatura))
-                # print(numFatura)
-                download_link(path, filename, link)
+                # path = path + '{Mes_Ref}/'.format(Mes_Ref=str(str(mesRef1)))
+                path = path + '{Concess}/'.format(Concess=str(bill['Sigla']))
+                ## FORMATO NOME 1 || /UC.pdf
+                # filename = "{UC}.pdf".format(
+                #     UC=(Unidade), EXT=(numFatura))
+                ## FORMATO NOME 2 || /Mes/ UC Mes ABC.pdf
+                filename = "{UC} {Mes_Ref}{EXT}".format(
+                UC=(Unidade), Mes_Ref=str(mesRef2), EXT=(numFatura))
+                ##mkdir
+                os.makedirs(path, exist_ok=True)
+                print(filename)
+                # return
 
-                logger.critical('Queue Complete {} {}'.format(Unidade,link))
+                DataEnvio = str(bill['Data_Envio'])
+                CodLink = str(bill['Cod_Link'])
+                NomeUpload = str(bill["Nome_Upload"])
+                NomeConcess = str(bill["Sigla"])
+
+            # JÁ ENVIADO
+                if bill["Arquivo_Envio"] == 1:
+                    print(Unidade)
+                    print("Já enviado " + str(bill["Arquivo_Envio"]))
+                    print(link)
+                    logger.info('	Enviado	{}	{}	{}	{}	{}	{}	{}'.format(
+                        Unidade, NomeConcess, mesRef3, CodLink, DataEnvio, NomeUpload, link))
+                    download_link(path, filename, link)
+            # NÃO ENVIAR
+                elif bill["Arquivo_Envio"] == 2:
+                    print(Unidade)
+                    print("N enviar " + str(bill["Arquivo_Envio"]))
+                    print(link)
+                    logger.info('	N enviar	{}	{}	{}	{}	{}	{}	{}'.format(
+                        Unidade, NomeConcess, mesRef3, CodLink, DataEnvio, NomeUpload, link))
+                    download_link(path, filename, link)
+            # ENVIAR FATURA
+                elif bill["Arquivo_Envio"] == 0:
+                    print(Unidade)
+                    print("Enviar " + str(bill["Arquivo_Envio"]))
+                    print(link)
+                    logger.info('	Enviar	{}	{}	{}	{}	{}	{}	{}'.format(
+                        Unidade, NomeConcess, mesRef3, CodLink, DataEnvio, NomeUpload, link))
+                    download_link(path, filename, link)
             except Exception as e:
                 print(e)
-                logger.critical('Queue Failed {}'.format(Unidade,link))
+                logger.critical('Download Erro {}'.format(Unidade, link))
 
             finally:
                 self.queue.task_done()
@@ -55,6 +92,8 @@ def main():
     queue = Queue()
 
     bills = get_bills()
+    logger.critical('	Enviado	{}	{}	{}	{}	{}	{}	{}'.format(
+        "Unidade", "Concessionária", "Mês Referência", "Lote", "Data Lote", "Nome Upload", "Link"))
 
     for x in range(8):
         worker = DownloadWorker(queue)

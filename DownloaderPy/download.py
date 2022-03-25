@@ -9,6 +9,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
+logging.basicConfig(filename='download.log', filemode='w', level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -34,8 +36,8 @@ def get_bills():
         mes = datetime.strptime(str(row[1]),'%d/%m/%Y').strftime("%Y-%m-%d")
         print(uc,mes)
         sql_query = f'''
-            ##BT
-            (SELECT A.Cod_UC, U.UC, B.Mes_Ref, A.Nome_Arquivo_Antigo AS Nome_Upload, B.Cod_Fatura, U.Tensao    
+            ## BT
+            (SELECT C.Sigla, A.Cod_Link, A.Data_Envio, A.Arquivo_Envio, A.Cod_UC, U.UC, B.Mes_Ref, A.Nome_Arquivo_Antigo AS Nome_Upload, B.Cod_Fatura, U.Tensao    
             FROM Tab_Upload_Faturas A
 				LEFT JOIN Tab_Fatura_BT B ON A.Cod_UC = B.Cod_UC AND A.Cod_Empresa = B.Cod_Empresa AND A.Cod_Fatura = B.Cod_Fatura
 				LEFT JOIN Tab_UC U ON U.Cod_UC = B.Cod_UC AND U.Cod_Empresa = B.Cod_Empresa
@@ -45,23 +47,23 @@ def get_bills():
             AND Mes_Ref >= '{mes}'
 				AND Mes_Ref <= '{mes}'
 				AND Nome_Upload != ''
-				AND U.UC = {uc}
+				AND U.UC = '{uc}'
             )
 
             UNION
 
             ## MT
-            (SELECT  A.Cod_UC, U.UC, B.Mes_Ref, A.Nome_Arquivo_Antigo AS Nome_Upload, B.Cod_Fatura, U.Tensao
+            (SELECT C.Sigla, A.Cod_Link, A.Data_Envio, A.Arquivo_Envio, A.Cod_UC, U.UC, B.Mes_Ref, A.Nome_Arquivo_Antigo AS Nome_Upload, B.Cod_Fatura, U.Tensao
             FROM Tab_Upload_Faturas A
 				LEFT JOIN Tab_Fatura_Dados B ON A.Cod_UC = B.Cod_UC AND A.Cod_Empresa = B.Cod_Empresa AND A.Cod_Fatura = B.Cod_Fatura
 				LEFT JOIN Tab_UC U ON U.Cod_UC = B.Cod_UC AND U.Cod_Empresa = B.Cod_Empresa
 				LEFT JOIN Tbl_Concessionaria C ON C.Cod_Concess = B.Cod_Concess
             WHERE 
 				A.Cod_Empresa = '1704'
-            AND Mes_Ref >= '{mes}'
+                AND Mes_Ref >= '{mes}'
 				AND Mes_Ref <= '{mes}'
 				AND Nome_Upload != ''
-				AND U.UC = {uc}
+				AND U.UC = '{uc}'
             )
             ORDER BY Mes_Ref;
         '''
@@ -70,8 +72,12 @@ def get_bills():
         cursor_sge = db_sge.cursor(dictionary=True)
         cursor_sge.execute(sql_query)
         ucbills = cursor_sge.fetchall()
-        for bill in ucbills:
-            bills.append(bill)
+        if cursor_sge.rowcount == 0:
+            logger.error(f'{uc}	{mes}	Sem faturamento')
+        else:
+            for bill in ucbills:
+                logger.info(f'{uc}	{mes}	Fatura encontrada')
+                bills.append(bill)
 
     return bills
 
@@ -85,4 +91,4 @@ def download_link(directory, dbname, link):
 
 if __name__ == '__main__':
     for bill in get_bills():
-        print(bill)
+        print(bill["Arquivo_Envio"])

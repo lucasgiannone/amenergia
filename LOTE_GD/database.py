@@ -104,7 +104,8 @@ def send_to_database(Usinas_Links, Usinas_Bills):
 
     sql_update = f'''UPDATE Tab_Upload_Faturas SET
         Arquivo_Envio_GD = 1,
-        Data_Envio_GD = %(Data_Envio_GD)s
+        Data_Envio_GD = %(Data_Envio_GD)s,
+        Cod_Link_GD = %(Cod_Lote)s
     WHERE
         Cod_Empresa = %(Cod_Empresa)s
         AND Cod_UC = %(Cod_UC)s
@@ -147,6 +148,7 @@ def send_to_database(Usinas_Links, Usinas_Bills):
         for Bill in Usina_Bills:
             data_update = {
                 'Data_Envio_GD': upload_date,
+                'Cod_Lote': Cod_Lote,
                 'Cod_Empresa': Bill["Cod_Empresa"],
                 'Cod_UC': Bill["Cod_UC"],
                 'Cod_Fatura': Bill["Cod_Fatura"],
